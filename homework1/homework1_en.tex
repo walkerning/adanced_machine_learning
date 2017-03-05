@@ -1,0 +1,271 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Short Sectioned Assignment
+% LaTeX Template
+% Version 1.0 (5/5/12)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Frits Wenneker (http://www.howtotex.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[paper=a4, fontsize=11pt]{scrartcl} % A4 paper and 11pt font size
+\usepackage[shortlabels]{enumitem}
+\usepackage{float}
+\usepackage{ctex}
+\usepackage{amssymb}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage[T1]{fontenc} % Use 8-bit encoding that has 256 glyphs
+\usepackage{fourier} % Use the Adobe Utopia font for the document - comment this line to return to the LaTeX default
+\usepackage[english]{babel} % English language/hyphenation
+\usepackage{amsmath,amsfonts,amsthm} % Math packages
+
+\usepackage{lipsum} % Used for inserting dummy 'Lorem ipsum' text into the template
+
+\usepackage{sectsty} % Allows customizing section commands
+%\allsectionsfont{\centering \normalfont\scshape} % Make all sections centered, the default font and small caps
+\usepackage{mathrsfs}
+\usepackage{fancyhdr} % Custom headers and footers
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\algnewcommand\Break{\textbf{break}}
+
+\usepackage{scrextend} % for addmargin
+\usepackage{subcaption}
+\graphicspath{{p3/}}
+%\usepackage{algorithmic}
+\usepackage[noend]{algpseudocode}
+\usepackage{listings}
+\pagestyle{fancyplain} % Makes all pages in the document conform to the custom headers and footers
+\fancyhead{} % No page header - if you want one, create it in the same way as the footers below
+\fancyfoot[L]{} % Empty left footer
+\fancyfoot[C]{} % Empty center footer
+\fancyfoot[R]{\thepage} % Page numbering for right footer
+\renewcommand{\headrulewidth}{0pt} % Remove header underlines
+\renewcommand{\footrulewidth}{0pt} % Remove footer underlines
+\setlength{\headheight}{13.6pt} % Customize the height of the header
+
+\numberwithin{equation}{section} % Number equations within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{figure}{section} % Number figures within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+\numberwithin{table}{section} % Number tables within sections (i.e. 1.1, 1.2, 2.1, 2.2 instead of 1, 2, 3, 4)
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs - comment this line for an assignment with lots of text
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{corollary}{Corollary}[theorem]
+\newtheorem{lemma}[theorem]{Lemma}
+
+%----------------------------------------------------------------------------------------
+%	TITLE SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\horrule}[1]{\rule{\linewidth}{#1}} % Create horizontal rule command with 1 argument of height
+
+\title{	
+\normalfont \normalsize 
+%\textsc{university, school or department name} \\ [25pt] % Your university, school and/or department name(s)
+\horrule{0.5pt} \\[0.4cm] % Thin top horizontal rule
+\huge Advanced Machine Learning - Homework 1\\ % The assignment title
+\horrule{2pt} \\[0.5cm] % Thick bottom horizontal rule
+}
+
+\author{宁雪妃} % Your name
+%\author{Xuefei Ning} % Your name
+
+\date{\normalsize\today} % Today's date or a custom date
+
+\begin{document}
+
+\maketitle % Print the title
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 1
+%----------------------------------------------------------------------------------------
+\section{Problem 1}
+\begin{enumerate}[a]
+\item \textbf{Consider a real, symmetric matrix $\Sigma$ whose eigenvalue equation is given by:}
+  \[
+  \Sigma u_i = \lambda_i u_i
+  \]
+  \textbf{By taking the complex conjugate of this equation and subtracting the original equation, and then forming the inner product with eigenvector $u_i$, show that the eigenvalues $\lambda_i$ are real. Similarly, use the symmetry property of $\Sigma$ to show that two eigenvectors $u_i$ and $u_j$ will be orthogonal provided $\lambda_j \neq \lambda_i$. Finally, show that without loss of generality, the set of eigenvectors can be chosen to be orthonormal, even if some of the eigenvalues are zero.}
+
+  To prove all eigenvalues $\lambda_i$ of a symmetric real matrix are real, we left multiply the conjugate-transpose vector of $u_i$: $u_i^{'}$.
+  \[
+  u_i^{'} \Sigma u_i = \lambda_i u_i^{'} u_i
+  \]
+  Because $\Sigma$ is a real symmetric matrix, its conjugate transpose matrix is itself: $\Sigma = \Sigma^{'}$, so, we have$u_i^{'} \Sigma u_i = (\Sigma u_i)' u_i = \lambda_i^{*} u_i' u_i$. Compared with the equation above, as $u_i \neq 0 \leadsto u_i' u_i > 0$, we have $\lambda_i = \lambda_i^{*}$, which means all $\lambda_i$ is real. \\
+
+  To prove the eigen vectors corresponding to different eigenvalues of a real symmetric matrix is orthogonal, assume $u_i$, $u_j$ is the corresponding eigen vector of two different eigenvalues $\lambda_i \neq \lambda_j$ of $\Sigma$, we have:
+  \begin{equation}
+  \begin{split}
+    \Sigma u_i & = \lambda_i u_i \\
+    \Sigma u_j & = \lambda_j u_j
+  \end{split}
+  \end{equation}
+  Left multiply $u_j^T$ to the first eigen equation:
+  \begin{equation}
+  \begin{split}
+    u_j^T \lambda_i u_i = u_j^T \Sigma u_i = {(\Sigma u_j)}^T u_i & = \lambda_j u_j^T u_i \\
+    \leadsto (\lambda_i - \lambda_j) u_j^T u_i & = 0
+  \end{split}
+  \end{equation}
+  As $\lambda_i \neq \lambda_j$, we have $u_j^T u_i = 0$, proved.\\
+
+  According to schur theorem: any matrix whose eigenvalues are all real is orthogonal similar to a upper triangular matrix. In the meantime, $\Sigma$ is symmetric, so that upper triangular matrix is a diagonal matrix. So, $\Sigma$ is orthogonal similar to a diagonal matrix, which means the every column of the orthogonal matrix is a eigenvector of $\Sigma$, and they are orthogonal.
+
+  This proposition can be illustrated in another way, as long as the eigenvectors corresponding to the same eigenvalue can be orthogonalized, while we have already proved eigenvectors corresponding to different eigenvalues are orthogonal, we can say the eigenvectors set can be choosen so that every two eigenvectors are orthogonal. There is a theorem that tells us: for a real symmetric matrix, the eigen space of a r-algebraic-multiplicity eigenvalue must be a r-dim space. So we can take any orthogonal basis in thir r-dim space as the eigen vectors corresponding to this eigenvalue.
+
+\item \textbf{Refer to slides about PCA, where we perform eigen-decomposition on}
+  \[
+  A = \frac{1}{N} \displaystyle \sum_{1=1}^{N} x_i x_i^T
+  \]
+  \textbf{Prove $A$ is a symmetric and positive semi-definite matrix.}
+
+  Prove $A$ is symmetric:
+  \[
+  \begin{split}
+    A^T = \frac{1}{N} \displaystyle\sum_{i=1}^{N} x_i x_i^T = A
+  \end{split}
+  \]
+  Prove $A$ is positive semi-definite:
+  \[
+  \begin{split}
+    \forall y, y^T A y = \frac{1}{N} \displaystyle\sum_{i=1}^{N} (x_i^T y)^T (x_i^T y) \geq 0
+  \end{split}
+  \]
+\end{enumerate}
+
+% ----
+\section{Problem 2}
+\textbf{Given a set of i.i.d data $X = \{x_1, \dots, x_N\}$ drawn from $N(x; \mu, \Sigma)$, we want to estimate $(\mu, \Sigma)$ by MLE.}
+\begin{enumerate}[a]
+\item \textbf{Write the log likelyhood function.}
+  \[
+  \begin{split}
+    L(X) = P(\{x_1, \dots, x_N\} | \mu, \Sigma) & = \prod_{i=1}^{N} P(x_i | \mu, \Sigma) \\
+    & = \prod_{i=1}^{N} \frac{1}{\sqrt{{(2\pi)}^n|\Sigma|}} \exp(-\frac{1}{2} {(x_i - \mu)}^T \Sigma^{-1} (x_i - \mu))\\
+    & = \frac{1}{{(2\pi)}^{\frac{nN}{2}} {\Sigma}^{\frac{N}{2}}} \exp(-\frac{1}{2} \sum_{i=1}^N {(x_i - \mu)}^T \Sigma^{-1} (x_i - \mu)) \\
+    \mbox{logL}(X) = \log(L(X)) & = - \frac{N}{2} \log(|\Sigma|) - \frac{Nn}{2} \log(2\pi) - \frac{1}{2} \sum_{i=1}^N {(x_i - \mu)}^T \Sigma^{-1} (x_i - \mu)
+  \end{split}
+  \]
+\item \textbf{Take the derivative of log likelyhood function w.r.t $\mu$, show that}
+  \[
+  \mu_{ML} = \frac{1}{N} \displaystyle \sum_{i=1}^{N} x_i
+  \]
+
+  \[
+  \frac{\partial \mbox{logL(X)}}{\partial \mu} = \sum_{i=1}^N \Sigma^{-1} (x_i - \mu) = \Sigma^{-1} \sum_{i=1}^N (x_i - \mu) = 0  \]
+  As $\Sigma^{-1}$ is non-singular, its null space is empty set. So, we must have:
+  \[
+  \sum_{i=1}^N (x_i - \mu) = 0 \leadsto \mu_{ML} = \frac{1}{N} \sum_{i=1}^N x_i
+  \]
+
+\item \textbf{Take the derivative of log likelihood function w.r.t. $\Sigma$, show that}
+  \[
+  \sum _{ML} = \frac{1}{N} \displaystyle\sum_{i=1}{N} (x_i - \mu_{ML})(x_i - \mu_{ML})^T
+  \]
+  \[
+  \frac{\partial \mbox{logL(X)}}{\partial \Sigma} = -\frac{N}{2} \Sigma^{-T} + \frac{1}{2} \sum_{i=1}^N \Sigma^{-T} (x_i - \mu)(x_i - \mu)^T \Sigma^{-T} = \frac{\Sigma^{-T}}{2} (\sum_{i=1}^N (x_i - \mu){(x_i - \mu)}^T \Sigma^{-T} - N) = 0
+  \]
+  As $\Sigma^{-1}$ is non-singular, we have $\frac{1}{N} \sum_{i=1}^N (x_i - \mu){(x_i - \mu)}^T \Sigma^{-T} = 1$.
+  Right multiply $\Sigma$ to the equation, and use the property $\Sigma^T = \Sigma$, we get:
+  \[
+  \Sigma_{ML} = \frac{1}{N} \sum_{i=1}^N (x_i - \mu_{ML}){(x_i - \mu_{ML})}^T
+  \]
+
+\item \textbf{Evaluate expectations of $\mu_{ML}$ and $\Sigma_{ML}$, show $\mu_{ML}$ is unbiased but $\Sigma_{ML}$ is biased.}
+  \[
+  E(\mu_{ML}) = \frac{1}{N} \sum_{i=1}^N E(x_i) = \frac{1}{N} \sum_{i=1}^N \mu = \mu
+  \]
+  $\mu_{ML}$ is an unbiased estimation.
+  \[
+  \begin{split}
+    E(\Sigma_{ML}) & = \frac{1}{N} \sum_{i=1}^N E(x_i x_i^T + {\mu_{ML}}^2 - \mu_{ML} x_i^T - x_i \mu_{ML}^T) = \Sigma + E(\mu_{ML} \mu_{ML}^T) - \frac{1}{N} E(\sum_{i=1}^N \mu_{ML} x_i^T) - \frac{1}{N} E(\sum_{i=1}^N x_i \mu_{ML}^T)\\
+    & = \Sigma - E(\mu_{ML} \mu_{ML}^T) \neq \Sigma
+  \end{split}
+  \]
+  $\Sigma_{ML}$ is a biased estimation.
+\end{enumerate}
+
+% ----
+\section{Problem 3}
+\textbf{For support vector machines, the class-conditional distributions may overlap, we therefore modify the support vector machine so as to allow some of the training points to be misclassified. For un-separable case, the formalization of the optimal problem becomes: Given $\{x_i, y_i\}, i=1, \dots, N, y_i \in \{−1, 1\}$ are training examples,}
+\[
+\begin{split}
+  \displaystyle\min_{\omega, b} \frac{{\|w\|}^2}{2} & + C \displaystyle \sum_{i=1}^{N} \xi_i\\
+  \mbox{s.t. } y^{(i)}(\omega^T x^{(i)} & + b) \geq 1 - \xi_i, 1 \leq i \leq N \\
+  \xi_i \geq 0, & 1 \leq i \leq N
+  \end{split}
+\]
+\textbf{where the $\xi_i$ denotes the slack variable penalty, and the parameter $C$ controls the trade-off betwwen the slack variable penalty and the margin. Please give the solutions of $\omega$ and $b$.}
+\begin{enumerate}[a]
+\item \textbf{Give the corresponding Lagrangian and the set of KKT conditions.}
+  Lagrangian:
+  \[
+  l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\}) = \frac{{\|\omega\|}^2}{2} + C \sum_{i=1}^N \xi_i - \sum_{i=1}^N a_i(y^{(i)}(w^T x^{(i)} + b) + \xi_i - 1) - \sum_{i=1}^N \beta_i \xi_i
+  \]
+  Corresponding KKT condition of this primal problem:
+  \[
+  \begin{split}
+    a_i(y^{(i)}(w^T x^{(i)} + b) + \xi_i - 1) = 0 \\
+    y^{(i)}(w^T x^{(i)} + b) + \xi_i - 1 \geq 0\\
+    \xi_i \geq 0\\
+    a_i \geq 0\\
+    \beta_i \geq 0\\
+    \mbox{for } i = 1, \dots, N
+  \end{split}
+  \]
+\item \textbf{Optimize out $\omega$, $b$ and $\{\xi_i\}$.}
+  The original objective function is equal to
+  \[
+  \max_{\{a_i\}, \{\beta_i\}}(l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\}))
+  \]
+  in the feasible solution space. As the primal problem satisfies the regularity conditions of strong duality, so the optimal solution of the dual problem
+  \[
+  \max_{\{a_i\}, \{\beta_i\}} \min_{\omega, b, \{\xi_i\}} l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\})
+  \]
+  is the same as the optimal solution of the primal problem (the duality gap is 0). So, we just need to solve the dual problem, after which we can solve $\omega$ and $b$ according to the optimal solution of the inner minimizing optimization problem: $\omega, b = f^{*}(\{a_i\}, \{\beta_i\})$. The optimal solution of the inner minimizing optimization problem must satisfies:
+  \[
+  \begin{split}
+    \frac{\partial l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\})}{\partial \omega} = \omega - \sum_{i=1}^N a_i y^{(i)} x^{(i)} = 0\\
+    \frac{\partial l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\})}{\partial b} = -\sum_{i=1}^N a_i y^{(i)} = 0\\
+    \frac{\partial l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\})}{\partial \xi_i} = C - a_i - \beta_i = 0\\
+  \end{split}
+  \]
+  Substitute $\omega = \sum_{i=1}^N a_i y^{(i)} x^{(i)}$, $\sum_{i=1}^N a_i y^{(i)} = 0$ and $C - a_i - \beta_i = 0$ into the lagrangian, we get:
+  \[
+  \begin{split}
+    l(\{a_i\}, \{\beta_i\}) & = \frac{1}{2}\sum_{i=1}^N\sum_{j=1}^N a_i a_j y^{(i)} y^{(j)} x^{(i)} x^{(j)} + C \sum_{i=1}^N \xi_i + \sum_{i=1}^N a_i - \sum_{i=1}^N\sum_{j=1}^N a_i a_j y^{(i)} y^{(j)} x^{(i)} x^{(j)} - \sum_{i=1}^N a_i \xi_i - \sum_{i=1}^N \beta_i \xi_i \\
+    & = -\frac{1}{2} \sum_{i=1}^N\sum_{j=1}^N a_i a_j y^{(i)} y^{(j)} x^{(i)} x^{(j)} + \sum_{i=1}^N a_i
+  \end{split}
+  \]
+  Notice there do not exist $\beta_i$ in this objective, however, the constraint of $\beta_i \geq 0$ together with the inner minmizing optimal condition $C - a_i - \beta_i = 0$ bring an additional constraint for $a_i$: $a_i \leq C$.
+
+\item \textbf{Give the dual Lagrangian.}
+  Dual Lagrangian is:
+  \[
+  l(\{a_i\}, \{\beta_i\}) = \min_{\omega, b, \{\xi_i\}} l(\omega, b, \{\xi_i\}, \{a_i\}, \{\beta_i\}) = -\frac{1}{2} \sum_{i=1}^N\sum_{j=1}^N a_i a_j y^{(i)} y^{(j)} x^{(i)} x^{(j)} + \sum_{i=1}^N a_i\\
+  \]
+  The dual problem is to maximize the dual lagrangian satisfying the following constraints:
+  \[
+  \begin{split}
+    0 \leq a_i \leq C, 1 \leq i \leq N\\
+    \sum_{i=1}^{N} a_i y_i = 0
+  \end{split}
+  \]
+
+\item \textbf{Give the final solution for $\omega$ and the numerically stable solution of $b$.}
+  After we found the optimal $\{a_i\}$ using some QP solver, we can easily construct $\omega^{*} = \sum_{i=1}^N a_i y^{(i)} x^{(i)}$.
+  To calculate $b$, we just need to find a data point $(x^{(j)}, y^{(j)})$ that has $a_j > 0$ and $a_j \neq C$(this data point is a supporting but not erroneous point), we have $y^{(j)}(\omega^{*} x^{(j)} + b) - 1 = 0 \leadsto b = y^{(j)} - \omega^{*}x^{(j)}$.
+\end{enumerate}
+\end{document}
