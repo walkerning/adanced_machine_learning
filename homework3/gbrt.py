@@ -44,7 +44,7 @@ class SimpleConfig(object):
         attr = self.dct.get(attr_name, defaults[self.phase].get(attr_name, None))
         if attr is None:
             raise Exception("`{}` not exists in config".format(attr_name))
-        attr = types.get("attr_name", str)(attr)
+        attr = types.get(attr_name, str)(attr)
         return attr
     
     def __repr__(self):
@@ -52,7 +52,7 @@ class SimpleConfig(object):
             return "index: {}; num: {}; depth: {}; lr: {}; save_dir: {}; res_dir {}".format(self.index, self.n_estimators, self.max_depth, self.lr, self.save_dir, self.res_dir)
         return ""
 
-def train(args):
+def train(args, data_dict=None):
     run_var = int(time.time())
     if isinstance(args, SimpleConfig):
         pid = os.getpid()
@@ -61,7 +61,12 @@ def train(args):
         #sys.stdout = open(os.path.join(args.log_dir, "{}.log".format(args.index)), "w")
         run_var = "{}_{}".format(args.index, run_var)
     print("loading features")
-    train_features, train_targets, train_indexes, val_features, val_targets, val_indexes = cPickle.load(open(args.data_file, "r"))
+    if data_dict is not None:
+        if args.data_file not in data_dict:
+            data_dict[args.data_file] = cPickle.load(open(args.data_file, "r"))
+        train_features, train_targets, train_indexes, val_features, val_targets, val_indexes = data_dict[args.data_file]
+    else:
+        train_features, train_targets, train_indexes, val_features, val_targets, val_indexes = cPickle.load(open(args.data_file, "r"))
 
     print("setup regressor")
     regressor = GradientBoostingRegressor(n_estimators=args.n_estimators, learning_rate=args.lr,
@@ -100,22 +105,28 @@ def test(args):
     with open(args.test_from, "r") as f:
         test_features, test_indexes = cPickle.load(f)
         test_predict = regressor.predict(test_features)
-        test_res_fname = os.path.join(args.res_dir, "test_res_gbrt_n{}_d{}_lr{}-{}.txt".format(args.n_estimators, args.max_depth, args.lr, run_var))
+        #test_res_fname = os.path.join(args.res_dir, "test_res_gbrt_n{}_d{}_lr{}-{}.txt".format(args.n_estimators, args.max_depth, args.lr, run_var))
+        test_res_fname = args.res_file
         print("test_predict will be written to {}".format(test_res_fname))
         with open(test_res_fname, "w") as f:
             for ind, predict in zip(test_indexes, test_predict):
                 f.write("{}\t{}\n".format(ind, predict))
 
-def batch_train(arg):
+def batch_train(arg, data_dict=None):
     config, index, log_dir = arg
     argconfig = SimpleConfig(config, "train", index, log_dir)
-    train(argconfig)
+    train(argconfig, data_dict=data_dict)
 
 def batch(num_processes, configs, log_dir):
     pass_args = zip(configs, range(len(configs)), [log_dir for _ in range(len(configs))])
     pool = Pool(num_processes)
     print("batch training mode: starting pool", file=sys.stderr)
     pool.map(batch_train, pass_args)
+
+def batch_sequential(configs, log_dir):
+    data_dict = {}
+    for ind, config in enumerate(configs):
+        batch_train((config, ind, log_dir), data_dict)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -124,7 +135,8 @@ def main():
     test_parser = subparsers.add_parser("test")
     test_parser.add_argument("--load-from", required=True)
     test_parser.add_argument("--test-from", required=True)
-    test_parser.add_argument("--res-dir", default=defaults["test"]["res_dir"])
+    #test_parser.add_argument("--res-dir", default=defaults["test"]["res_dir"])
+    test_parser.add_argument("--res-file", required=True)
 
     train_parser = subparsers.add_parser("train")
     train_parser.add_argument("--data-file", required=True)
@@ -136,6 +148,7 @@ def main():
     train_parser.add_argument("--loss", default=defaults["train"]["loss"])
     batch_parser = subparsers.add_parser("batch")
     batch_parser.add_argument("conf", help="yaml file of list of configuration")
+    batch_parser.add_argument("--parallel", action="store_true")
     batch_parser.add_argument("--n-workers", default=None, help="number of workers, default: #cpu/4", type=int)
     batch_parser.add_argument("--log-dir", required=True)
 
@@ -145,7 +158,10 @@ def main():
         with open(args.conf, "r") as f:
             configs = yaml.load(f)
             assert isinstance(configs, list)
-        batch(num_process, configs, args.log_dir)
+        if not args.parallel:
+            batch_sequential(configs, args.log_dir)
+        else:
+            batch(num_process, configs, args.log_dir)
     elif args.phase == "train":
         train(args)
     else:

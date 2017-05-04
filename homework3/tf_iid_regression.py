@@ -137,21 +137,23 @@ def simple_mlp_model(X, **kwargs):
         # predict_y = nn_layer(dropped, 20, 1, "layer2", act=tf.identity)
 
         # 40-20-1
-        # hidden1 = nn_layer(X, input_dim, 40, "layer1")
-        # dropped = tf.nn.dropout(hidden1, keep_prob)
-        # hidden2 = nn_layer(dropped, 40, 20, "layer2")
-        # dropped2 = tf.nn.dropout(hidden2, keep_prob)
-        # predict_y = nn_layer(dropped2, 20, 1, "layer3", act=tf.identity)
+        hidden1 = nn_layer(X, input_dim, 40, "layer1")
+        dropped = tf.nn.dropout(hidden1, keep_prob)
+        hidden2 = nn_layer(dropped, 40, 20, "layer2")
+        dropped2 = tf.nn.dropout(hidden2, keep_prob)
+        # hidden3 = nn_layer(dropped2, 20, 20, "layer2-2")
+        # dropped3 = tf.nn.dropout(hidden3, keep_prob)
+        predict_y = nn_layer(dropped2, 20, 1, "layer3", act=tf.identity)
         # hidden3 = nn_layer(dropped2, 20, 10, "layer3")
         # predict_y = tf.reduce_mean(hidden3)
 
-        hidden1 = nn_layer(X, input_dim, 80, "layer1")
-        dropped = tf.nn.dropout(hidden1, keep_prob)
-        hidden2 = nn_layer(dropped, 80, 40, "layer2")
-        dropped2 = tf.nn.dropout(hidden2, keep_prob)
-        hidden3 = nn_layer(dropped2, 40, 20, "layer3")
-        dropped3 = tf.nn.dropout(hidden3, keep_prob)
-        predict_y = nn_layer(dropped3, 20, 1, "layer4", act=tf.identity)
+        # hidden1 = nn_layer(X, input_dim, 80, "layer1")
+        # dropped = tf.nn.dropout(hidden1, keep_prob)
+        # hidden2 = nn_layer(dropped, 80, 40, "layer2")
+        # dropped2 = tf.nn.dropout(hidden2, keep_prob)
+        # hidden3 = nn_layer(dropped2, 40, 20, "layer3")
+        # dropped3 = tf.nn.dropout(hidden3, keep_prob)
+        # predict_y = nn_layer(dropped3, 20, 1, "layer4", act=tf.identity)
 
         # dropped1 = tf.nn.dropout(hidden1, keep_prob)
         # hidden2 = nn_layer(dropped1, 10, 10, "layer2")
@@ -181,13 +183,13 @@ def train():
 
     train_targets = train_targets[:, np.newaxis]
     val_targets = val_targets[:, np.newaxis]
-
-    X = tf.placeholder("float", [None, train_features.shape[1]])
+    input_dim = train_features.shape[1]
+    X = tf.placeholder("float", [None, input_dim])
     Y = tf.placeholder("float", [None, 1])
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
         tf.summary.scalar('dropout_keep_probability', keep_prob)
-    predict_y = FLAGS.model(X, keep_prob=keep_prob, input_dim=train_features.shape[1])
+    predict_y = FLAGS.model(X, keep_prob=keep_prob, input_dim=input_dim)
 
     loss = tf.reduce_mean(tf.square(predict_y - Y)) # L2 loss
     tf.summary.scalar('loss', loss)
