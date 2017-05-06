@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 import cPickle
+import os
 import argparse
 from data import Author, Paper, init
 
@@ -29,19 +30,21 @@ def dump_adjlist(ADJ_FILE, map_file, threshold):
     number_index_mapping = {}
     index_number_mapping = {}
     print("deepwalk feature: dumping adjlist")
-    number = 0
+    number = 1
     for ind, author in Author.authors_index_obj_map.iteritems():
         if not hasattr(author, "collabrations"):
-            continue
-        author._deepwalk_adjs = [k for k, v in author.collabrations.iteritems() if v >= threshold]
+            #continue
+            author._deepwalk_adjs = []
+        else:
+            author._deepwalk_adjs = [k for k, v in author.collabrations.iteritems() if v >= threshold]
         number_index_mapping[number] = ind
         index_number_mapping[ind] = number
         number += 1
     print("start writing adj list to {}".format(ADJ_FILE))
     with open(ADJ_FILE, "w") as f:
         for ind, author in Author.authors_index_obj_map.iteritems():
-            if not hasattr(author, "collabrations"):
-                continue
+            # if not hasattr(author, "collabrations"):
+            #     continue
             adjs = [index_number_mapping[c_ind] for c_ind in author._deepwalk_adjs]
             f.write("{} {}\n".format(index_number_mapping[ind], " ".join([str(x) for x in adjs])))
     print("writing mapping (index_number_mapping, number_index_mapping) to {}".format(map_file))
@@ -76,7 +79,10 @@ if __name__ == "__main__":
     parser.add_argument("--threshold", default=3, type=int, help="threshold to have connection")
     args = parser.parse_args()
     print("init data")
-    init("..")
+    here = os.path.dirname(os.path.abspath(__file__))
+    datapath = os.path.dirname(here)
+    print("data path: {}".format(datapath))
+    init(datapath)
     print("prepare collabrators")
     prepare_collabrators()
     print("write adjlist to {}".format(args.save_file))

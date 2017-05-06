@@ -11,7 +11,7 @@ import os
 FLAGS = None
 
 class LearningRateComputer(object):
-    def __init__(self, base_learning_rate, decay_rate, threshold=0.005, run_threshold=10):
+    def __init__(self, base_learning_rate, decay_rate, threshold=0.001, run_threshold=10):
         self.decay_rate = decay_rate
         self.learning_rate = base_learning_rate
         self.training_loss = []
@@ -180,10 +180,17 @@ def train():
     print("start loading features")
     train_features, train_targets, train_indexes, val_features, val_targets, val_indexes = cPickle.load(open(FLAGS.data_file, "r"))
     print("finish loading features")
-
+    # normalize to var=1, mean=0
+    if FLAGS.normalize_features:
+        all_features = np.vstack((train_features, val_features))
+        all_features_mean = np.mean(all_features, axis=0)
+        all_features_std = np.std(all_features, axis=0)
+        train_features = (train_features - all_features_mean) / all_features_std
+        val_features = (val_features - all_features_mean) / all_features_std
     train_targets = train_targets[:, np.newaxis]
     val_targets = val_targets[:, np.newaxis]
     input_dim = train_features.shape[1]
+    print("input dim: {}".format(input_dim))
     X = tf.placeholder("float", [None, input_dim])
     Y = tf.placeholder("float", [None, 1])
     with tf.name_scope('dropout'):
@@ -221,6 +228,8 @@ def train():
         if FLAGS.test is not None:
             with open(FLAGS.test, "r") as f:
                 test_features, test_indexes = cPickle.load(f)
+            if FLAGS.normalize_features:
+                test_features = (test_features - all_features_mean) / all_features_std
             test_predict = sess.run(predict_y, feed_dict={X: test_features, keep_prob: 1})
             test_res_fname = "test_res_" + FLAGS.run_var + ".txt"
             print("test_predict will be written to {}".format(test_res_fname))
@@ -241,7 +250,13 @@ def train():
     lrc = LearningRateComputer(FLAGS.learning_rate, 0.5, run_threshold=FLAGS.run_threshold)
     learning_rate = tf.placeholder(tf.float32, shape=[])
     with tf.name_scope('train'):
-        optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        print("use optimizer: {}".format(FLAGS.optimizer))
+        if FLAGS.optimizer == "gd":
+            optimizer = tf.train.GradientDescentOptimizer(learning_rate)
+        elif FLAGS.optimizer == "momentum":
+            optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
+        elif FLAGS.optimizer == "adam":
+            optimizer = tf.train.AdamOptimizer(learning_rate, FLAGS.momentum)
         grads = optimizer.compute_gradients(loss)
         for grad, varname in grads:
             print("add summary supervision for grad of {}".format(varname.name))
@@ -327,11 +342,17 @@ if __name__ == "__main__":
                         help="eval model, not training. will ignore all other options except `model`, `save_model_dir/file`, `data_file`")
     parser.add_argument("--test", default=None,
                         help="test feature/index pkl file, must use with `--eval`")
-    parser.add_argument("--model", choices=available_models, default="linear_regression")
+    parser.add_argument("--model", choices=available_models, default="simple_mlp")
     parser.add_argument("--save_model_dir", default="./models/",
                         help="the dir to save the model")
     parser.add_argument("--save_model_file", default="model.model",
                         help="the file name to save the model")
+    parser.add_argument("--optimizer", default="gd",
+                        help="the optimizer type, gd / momentum / adam")
+    parser.add_argument("--momentum", type=float, default=0.9,
+                        help="the momentum of the optimizer with momentum (adam/momentum)")
+    parser.add_argument("--normalize_features", action="store_true", default=False,
+                        help="normalize features to var=1, mean=0")
     parser.add_argument(
         "--data_file",
         type=str,

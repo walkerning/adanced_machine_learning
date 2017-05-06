@@ -15,7 +15,14 @@ def prepare_papers():
                 1: {},
                 -1: {}
             }
+            
         self.papers[order][index] = cited_count
+    def set_all_paper(self, index):
+        if not hasattr(self, "paper_count"):
+            self.paper_count = 0
+            self.all_papers = []
+        self.all_papers.append(index)
+        self.paper_count += 1
 
     for index, obj in Paper.papers_index_obj_map.iteritems():
         if obj.cites is not None:
@@ -36,9 +43,7 @@ def prepare_papers():
             set_paper(Author.get_author_from_index(obj.author_ids[-1]), -1, index, len(obj.cited_by))
         for author_id in obj.author_ids:
             author = Author.get_author_from_index(author_id)
-            if not hasattr(author, "paper_count"):
-                author.paper_count = 0
-            author.paper_count += 1    
+            set_all_paper(author, index)
 
 def prepare_collabrators():
     # 需不需要加入cites?
@@ -46,6 +51,7 @@ def prepare_collabrators():
         if not hasattr(author, "collabrations"):
             author.collabrations = {}
             author.collabrations_by_year = {}
+            author.collabrations_weights = {}
         if year not in author.collabrations_by_year:
             author.collabrations_by_year[year] = {}
         for col_id in ids:
@@ -53,9 +59,11 @@ def prepare_collabrators():
                 continue
             if col_id not in author.collabrations:
                 author.collabrations[col_id] = 0
+                author.collabrations_weights[col_id] = 0
             if col_id not in author.collabrations_by_year[year]:
                 author.collabrations_by_year[year][col_id] = 0
             author.collabrations[col_id] += 1
+            author.collabrations_weights[col_id] += 1 / (float(len(ids)) - 1)
             author.collabrations_by_year[year][col_id] += 1
 
     for index, obj in Paper.papers_index_obj_map.iteritems():
@@ -88,10 +96,25 @@ def get_feature_all_paper_count(author):
         return np.array([0])
     return np.array([author.paper_count])
 
+def get_feature_citation_count_by_year_noorder(author):
+    base_year = getattr(args, "base_year", 1967)
+    if not hasattr(author, "all_papers"):
+        return [0 for _ in range((2011-base_year+1) * (2))]
+    num_years_list = [0 for _ in range(2011-base_year+1)]
+    cites_years_list = [0 for _ in range(2011-base_year+1)]
+    for p_index in author.all_papers:
+        p = Paper.get_paper_from_index(p_index)
+        ind = p.year - base_year
+        if ind < 0:
+            continue
+        cites_years_list[ind] += len(p.cited_by)
+        num_years_list[ind] += 1
+    return np.concatenate((num_years_list, cites_years_list))
+
 def get_feature_citation_count_by_year(author):
     base_year = getattr(args, "base_year", 1967)
     if not hasattr(author, "papers"):
-        return [0 for _ in range((2011-base_year+1) * 4)]
+        return [0 for _ in range((2011-base_year+1) * (6 if args.include_last else 4))]
     # already verified, the year range is: 1936 ~ 2011
     # 取从1967年开始的数据. 1967年之前的paper占比为0.002535306438376776
     cites_1st_years_list = [0 for _ in range(2011-base_year+1)]
@@ -113,75 +136,114 @@ def get_feature_citation_count_by_year(author):
             continue
         cites_2st_years_list[ind] += cited_count
         num_2st_years_list[ind] += 1
-    return np.concatenate((num_1st_years_list, cites_1st_years_list, num_2st_years_list, cites_2st_years_list))
 
-feature_dict = {
-    "all_paper_count": get_feature_all_paper_count,
-    "citation_count_by_year": get_feature_citation_count_by_year,
-    "num_collabrator_by_year": get_feature_num_collabrator_by_year
-}
+    if args.include_last:
+        cites_last_years_list = [0 for _ in range(2011-base_year+1)]
+        num_last_years_list = [0 for _ in range(2011-base_year+1)]
+        for index, cited_count in author.papers[-1].iteritems():
+            p = Paper.get_paper_from_index(index)
+            ind = p.year - base_year
+            if ind < 0:
+                continue
+            cites_last_years_list[ind] += cited_count
+            num_last_years_list[ind] += 1
+    return np.concatenate((num_1st_years_list, cites_1st_years_list, num_2st_years_list, cites_2st_years_list)) if not args.include_last else np.concatenate((num_1st_years_list, cites_1st_years_list, num_2st_years_list, cites_2st_years_list, num_last_years_list, cites_last_years_list))
 
-feature_prepare_dict = {
-    "all_paper_count": [prepare_papers],
-    "citation_count_by_year": [prepare_papers],
-    "deepwalk": [prepare_collabrators],
-    "num_collabrator_by_year": [prepare_collabrators]
-}
+_conference_score_dict = None
+def get_feature_conference(author):
+    if not hasattr(author, "papers"):
+        return np.zeros(6)
+    base_year = args.base_year
+    # 发表会议的平均质量?
+    global _conference_score_dict
+    if _conference_score_dict is None:
+        assert args.conference_score is not None
+        with open(args.conference_score, "r") as f:
+            _conference_score_dict = cPickle.load(f)
+    author_scores = [np.zeros(2), np.zeros(2), np.zeros(2)]
+    for _ind, order in enumerate((0, 1, -1)):
+        for index in author.papers[order].iterkeys():
+            p = Paper.get_paper_from_index(index)
+            if p.year < base_year:
+                continue
+            if p.conference is None:
+                continue
+            # 暂时不求mean了
+            author_scores[_ind] = author_scores[_ind] + np.array(_conference_score_dict[p.conference])
+    return np.concatenate(author_scores)
 
-_guard_get_feature_deepwalk = None
-number_index_mapping = {}
-index_number_mapping = {}
+_guard_get_feature_deepwalk = False
+# number_index_mapping = {}
+# index_number_mapping = {}
 _deepwalk_features = {}
 def get_feature_deepwalk(author):
     """
     dump graph structure, and call deepwalk, use skip gram to generate collabrative latent feature of authors
     """
-    global _deepwalk_features, _guard_get_feature_deep_walk
-    global number_index_mapping, index_number_mapping
-    _threshold = 3 # 合作过`_threshold`次或以上认为有关联
-    CACHE_FILE = "deepwalk_cache.pkl"
-    ADJ_FILE = "_deepwalk_adj.txt"
-    TMP_FILE = "_deepwalk_tmpout.txt"
-    if _guard_get_feature_deep_walk is None:
-        if os.path.exists(CACHE_FILE):
-            # 已经制作好了cache
-            with open(CACHE_FILE, "r") as f:
-                _deepwalk_features = cPickle.load(f)
-        else:        
-            # dump the adj list and also the mapping
-            
-            print("deepwalk feature: dumping adjlist")
-            number = 0
-            for ind, author in Author.authors_index_obj_map.iteritems():
-                if not hasattr(author, "collabrations"):
+    global _guard_get_feature_deepwalk
+    global _deepwalk_features
+    if not _guard_get_feature_deepwalk:
+        assert args.deepwalk_output is not None
+        assert args.deepwalk_mapping is not None
+        with open(args.deepwalk_mapping, "r") as f:
+            _, number_index_mapping = cPickle.load(f)
+        with open(args.deepwalk_output, "r") as f:
+            _, dim = f.readline().strip().split(" ")
+            dim = int(dim)
+            for line in f:
+                line = line.strip()
+                if not line:
                     continue
-                author._deepwalk_adjs = [k for k, v in author.collabrations.iteritems() if v >= _threshold]
-                number_index_mapping[number] = ind
-                index_number_mapping[ind] = number
-                number += 1
-            with open(ADJ_FILE, "w") as f:
-                for ind, author in Author.authors_index_obj_map.iteritems():
-                    if not hasattr(author, "collabrations"):
-                        continue
-                    adjs = [index_number_mapping[c_ind] for c_ind in author._deepwalk_adjs]
-                    f.write("{} {}\n".format(index_number_mapping[ind], " ".join(adjs)))
-            # call deepwalk
-            print("deepwalk feature: calling deepwalk")
-            subprocess.check_call("deepwalk --format adjlist --input {} --output {} --walk-length 3 --window-size 3 --workers {} --number-walks 10 --representation-size {}".format(ADJ_FILE, TMP_FILE, args.deepwalk_workers, args.deepwalk_representation_size))
-            # FIXME: skipgram model的window_size代表什么?
-            # 读入TMP_FILE
-            print("deepwalk feature: read result from deepwalk output")
-            with open(TMP_FILE, "r") as f:
-                _ = f.readline()
-                for line in f:
-                    fs = line.strip().split(" ")
-                    _deepwalk_features[number_index_mapping[int(fs[0])]] = np.array(fs[1:]).astype(np.float)
+                data = line.split(" ")
+                assert len(data) == dim + 1
+                _deepwalk_features[number_index_mapping[int(data[0])]] = [float(x) for x in data[1:]]
+        _guard_get_feature_deepwalk = True
+    return np.array(_deepwalk_features[author.index])
+    # global _deepwalk_features, _guard_get_feature_deep_walk
+    # global number_index_mapping, index_number_mapping
+    # _threshold = 3 # 合作过`_threshold`次或以上认为有关联
+    # CACHE_FILE = "deepwalk_cache.pkl"
+    # ADJ_FILE = "_deepwalk_adj.txt"
+    # TMP_FILE = "_deepwalk_tmpout.txt"
+    # if _guard_get_feature_deep_walk is None:
+    #     if os.path.exists(CACHE_FILE):
+    #         # 已经制作好了cache
+    #         with open(CACHE_FILE, "r") as f:
+    #             _deepwalk_features = cPickle.load(f)
+    #     else:        
+    #         # dump the adj list and also the mapping
             
-            print("deepwalk feature: dump cache file for future use")
-            with open(CACHE_FILE, "w") as f:
-                cPickle.dump(_deepwalk_features, f)
-        _guard_get_feature_deep_walk = True
-    return _deepwalk_features[author.index]
+    #         print("deepwalk feature: dumping adjlist")
+    #         number = 0
+    #         for ind, author in Author.authors_index_obj_map.iteritems():
+    #             if not hasattr(author, "collabrations"):
+    #                 continue
+    #             author._deepwalk_adjs = [k for k, v in author.collabrations.iteritems() if v >= _threshold]
+    #             number_index_mapping[number] = ind
+    #             index_number_mapping[ind] = number
+    #             number += 1
+    #         with open(ADJ_FILE, "w") as f:
+    #             for ind, author in Author.authors_index_obj_map.iteritems():
+    #                 if not hasattr(author, "collabrations"):
+    #                     continue
+    #                 adjs = [index_number_mapping[c_ind] for c_ind in author._deepwalk_adjs]
+    #                 f.write("{} {}\n".format(index_number_mapping[ind], " ".join(adjs)))
+    #         # call deepwalk
+    #         print("deepwalk feature: calling deepwalk")
+    #         subprocess.check_call("deepwalk --format adjlist --input {} --output {} --walk-length 3 --window-size 3 --workers {} --number-walks 10 --representation-size {}".format(ADJ_FILE, TMP_FILE, args.deepwalk_workers, args.deepwalk_representation_size))
+    #         # FIXME: skipgram model的window_size代表什么?
+    #         # 读入TMP_FILE
+    #         print("deepwalk feature: read result from deepwalk output")
+    #         with open(TMP_FILE, "r") as f:
+    #             _ = f.readline()
+    #             for line in f:
+    #                 fs = line.strip().split(" ")
+    #                 _deepwalk_features[number_index_mapping[int(fs[0])]] = np.array(fs[1:]).astype(np.float)
+            
+    #         print("deepwalk feature: dump cache file for future use")
+    #         with open(CACHE_FILE, "w") as f:
+    #             cPickle.dump(_deepwalk_features, f)
+    #     _guard_get_feature_deep_walk = True
 
 def all_features(index, features, test=False):
     author = Author.get_author_from_index(index)
@@ -197,28 +259,80 @@ def all_features(index, features, test=False):
         target = None
     return ret, target
 
+def get_feature_h_index(author):
+    if not hasattr(author, "all_papers"):
+        return np.array([0])
+    p_cites =  np.array(sorted([Paper.get_paper_from_index(p_index) for p_index in author.all_papers], reverse=True))
+    inds = np.where(np.arange(len(p_cites)) >= p_cites)[0]
+    if len(inds) == 0:
+        return np.array([len(p_cites)])
+    return np.array([inds[0]])
+
+
+def get_feature_neighbor_citation(author):
+    threshold = args.neighbor_threshold
+    if not hasattr(author, "collabrations"):
+        return np.array([0])
+    cols = [(author.collabrations_weights[col_id], Author.get_author_from_index(col_id)) for col_id, col_num in author.collabrations.iteritems()
+            if col_num >= threshold]
+    cols = [(col_num, obj) for col_num, obj in cols if obj.target_cites_count is not None]
+    contris = [float(col_num)**2 / float(author.paper_count) / float(obj.paper_count) * obj.target_cites_count
+                for col_num, obj in cols]
+    #print(cols, contris)
+    return np.array([np.sum(contris)])
+
+feature_dict = {
+    "all_paper_count": get_feature_all_paper_count,
+    "citation_count_by_year": get_feature_citation_count_by_year,
+    "citation_count_by_year_noorder": get_feature_citation_count_by_year_noorder,
+    "num_collabrator_by_year": get_feature_num_collabrator_by_year,
+    "deepwalk": get_feature_deepwalk,
+    "conference": get_feature_conference,
+    "neighbor_citation": get_feature_neighbor_citation,
+    "h_index": get_feature_h_index
+}
+
+feature_prepare_dict = {
+    "all_paper_count": [prepare_papers],
+    "citation_count_by_year": [prepare_papers],
+    "citation_count_by_year_noorder": [prepare_papers],
+    "conference": [prepare_papers],
+    "num_collabrator_by_year": [prepare_collabrators],
+    "neighbor_citation": [prepare_papers, prepare_collabrators],
+    "h_index": [prepare_papers]
+}
+
 def main():
     import sys
     legal_feature_names = feature_dict.keys()
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("save", help="save feature to file")
     parser.add_argument("-f", "--features", action="append", required=True,
                         help="all the features will be concat in order",
                         choices=legal_feature_names)
     parser.add_argument("--base-year", default=1967, type=int,
                         help="the base year of by-year")
-    parser.add_argument("--train", required=True,
+    parser.add_argument("--train", default="train_indexes.pkl",
                         help="The pkl file that store all the train indexes")
-    parser.add_argument("--val", required=True,
+    parser.add_argument("--val", default="val_indexes.pkl",
                         help="The pkl file that store all the val indexes")
-    parser.add_argument("--test", required=True,
+    parser.add_argument("--test", default="test_indexes.pkl",
                         help="The pkl file that store all the test indexes")
-    #for deepwalk
-    parser.add_argument("--deepwalk-workers", default=1,
-                        help="Number of parallel workers running `deepwalk`")
+    # for neighbor_citation
+    parser.add_argument("--neighbor-threshold", default=1, type=int,
+                        help="min number of collabrations when considered collabrators")
+    # for get_features_citation_counts)by_year
+    parser.add_argument("--include-last", default=False, action="store_true")
+    # for conference
+    parser.add_argument("--conference-score", default=None, help="the conference score pkl file")
+    # for deepwalk
+    parser.add_argument("--deepwalk-output", default=None, help="the output file of deepwalk")
+    parser.add_argument("--deepwalk-mapping", default=None, help="the mapping file of index")
+    # parser.add_argument("--deepwalk-workers", default=1,
+    #                     help="Number of parallel workers running `deepwalk`")
 
-    parser.add_argument("--deepwalk-representation-size", default=32,
-                        help="social reprensentation dimension")
+    # parser.add_argument("--deepwalk-representation-size", default=16,
+    #                     help="social reprensentation dimension")
 
     global args
     args = parser.parse_args()
