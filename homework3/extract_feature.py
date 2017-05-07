@@ -270,7 +270,8 @@ def get_feature_h_index(author):
 
 
 def get_feature_neighbor_citation(author):
-    threshold = args.neighbor_threshold
+    #threshold = args.neighbor_threshold
+    threshold = 1
     if not hasattr(author, "collabrations"):
         return np.array([0])
     cols = [(author.collabrations_weights[col_id], Author.get_author_from_index(col_id)) for col_id, col_num in author.collabrations.iteritems()
@@ -281,6 +282,15 @@ def get_feature_neighbor_citation(author):
     #print(cols, contris)
     return np.array([np.sum(contris)])
 
+_neighbor_cts_dict = None
+def get_feature_neighbor_cts_citation(author):
+    global _neighbor_cts_dict
+    if _neighbor_cts_dict is None:
+        cts_fname = args.neighbor_cts_fname
+        with open(cts_fname, "r") as f:
+            _neighbor_cts_dict = cPickle.load(f)        
+    return np.array([_neighbor_cts_dict[author.index]])
+
 feature_dict = {
     "all_paper_count": get_feature_all_paper_count,
     "citation_count_by_year": get_feature_citation_count_by_year,
@@ -289,7 +299,8 @@ feature_dict = {
     "deepwalk": get_feature_deepwalk,
     "conference": get_feature_conference,
     "neighbor_citation": get_feature_neighbor_citation,
-    "h_index": get_feature_h_index
+    "h_index": get_feature_h_index,
+    "neighbor_cts_citation": get_feature_neighbor_cts_citation
 }
 
 feature_prepare_dict = {
@@ -321,6 +332,8 @@ def main():
     # for neighbor_citation
     parser.add_argument("--neighbor-threshold", default=1, type=int,
                         help="min number of collabrations when considered collabrators")
+    parser.add_argument("--neighbor-cts-fname", default="cts_feat.pkl",
+                        help="the precomputed neighbor cts feature pkl file")
     # for get_features_citation_counts)by_year
     parser.add_argument("--include-last", default=False, action="store_true")
     # for conference

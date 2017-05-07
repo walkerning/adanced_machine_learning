@@ -257,6 +257,9 @@ def train():
             optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
         elif FLAGS.optimizer == "adam":
             optimizer = tf.train.AdamOptimizer(learning_rate, FLAGS.momentum)
+        elif FLAGS.optimizer == "rmsprop":
+            optimizer = tf.train.RMSPropOptimizer(FLAGS.learning_rate)
+            #learning_rate)
         grads = optimizer.compute_gradients(loss)
         for grad, varname in grads:
             print("add summary supervision for grad of {}".format(varname.name))
@@ -348,7 +351,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model_file", default="model.model",
                         help="the file name to save the model")
     parser.add_argument("--optimizer", default="gd",
-                        help="the optimizer type, gd / momentum / adam")
+                        help="the optimizer type, gd / momentum / adam / rmsprop")
     parser.add_argument("--momentum", type=float, default=0.9,
                         help="the momentum of the optimizer with momentum (adam/momentum)")
     parser.add_argument("--normalize_features", action="store_true", default=False,
