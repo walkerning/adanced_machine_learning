@@ -32,7 +32,7 @@ def prepare_conferences(base_year):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("save")
-    parser.add_argument("--base-year", default=1975, type=int)
+    parser.add_argument("--base-year", default=1967, type=int)
     args = parser.parse_args()
     here = os.path.dirname(os.path.abspath(__file__))
     datapath = os.path.dirname(here)

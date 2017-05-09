@@ -1,4 +1,4 @@
-mlp v3 val error: 768.153017124
+ mlp v3 val error: 768.153017124
 mlp v5 val error: 731.974512866
 
 v3 base1975的feature:
@@ -56,12 +56,14 @@ v7 feature: 加入了合作者平均值(确实有一些outlier, 对于直接mlp 
 | v10 train | 726.3335084       |    | |
 | v10 val   | 715.7601487       |    | |
 | v11 train | 679.5615549       |  683.2101845(400) 550.99822998(1000)(有一定的overfit, L2) | 398.1649887(500, 5) |
-| v11 val   | 699.0979139(after post:  697.798612525; average with gbrt v7 643.139887016(test 635.99225. v12新的test feature: 635.011816376182). average with gbrt v9: 635.709950679(test 643.34587298387过拟合了); )      | 724.3303373(400) 666.91595459(1000)(average with gbrtv7: 628.489951417. test:  613.985499016759)  |  636.1306552(500, 5) |
+| v11 val   | 699.0979139(after post:  697.798612525; average with gbrt v7 643.139887016(test 635.99225. v12新的test feature: 635.011816376182). average with gbrt v9: 635.709950679(test 643.34587298387过拟合了); average with gbrt v14:  617.947185539(感觉肯定过拟合..test 636.568264081054果然过拟合了.....))      | 724.3303373(400) 666.91595459(1000)(average with gbrtv7: 628.489951417. test:  613.985499016759)  |  636.1306552(500, 5) |
+| v11_new_cited train | 664.7114621  |  |   |
+| v11_new_cited val   | 684.2089672(after post: 682.866065854; average with gbrtv7:  634.181490742)  |  |   |
 | v13 train | 679.5615549       |    | |
-| v13 val   | 695.0319592(after post: 693.724912498; average with gbrt v7:)       |    | |
+| v13 val   | 695.0319592(after post: 693.724912498; average with gbrt v7: 642.681687151)       |    | |
 v14, v15用到了val的信息帮助train分每个paper的比重, 可能利用这个信息也会过拟合?. 干脆还是只用train的cut. 诶不对a...没有用... val的`total_cts_count`只被用在了test.all_papers_cts的更新上. 没有用在train.all_papers_cts或者val的更新上... 不过把val的target用在了其一些paper的最小值的限定上了 = =有道理诶. val还是不用于限定paper的cts了. 但是val的total_cts_count可以用在test的all_papers_cts的更新上
-| v14 train | 679.5231961       |    |  |
-| v14 val   | 684.1683708(after post: 682.756776868; average with gbrt v7: 638.041958655;)       |    | 624.0462469(500, 5) |
+| v14 train | 679.5231961       |    |  437.8034872(500, 4) 393.6562691(500, 5) |
+| v14 val   | 684.1683708(after post: 682.756776868; average with gbrt v7: 638.041958655;)       |    | 624.0462469(500, 4), 622.1464063(500, 5) |
 | v15 train | 664.5638166       |    | |
 | v15 val   | 645.4476259(after post:  643.944785454; average with gbrt v7:  618.882995168. test: 638.359091555661更差了= =看来val并不能很好的反应test集的情况呀)       |    | |
 ev9: python extract_feature.py -- train_features_v9.pkl.train -f all_paper_count -f num_collabrator_by_year -f citation_count_by_year_noorder  -f h_index -f neighbor_citation
@@ -162,9 +164,14 @@ t_by_year_noorder -f h_index -f neighbor_citation -f neighbor_cts_citation
 v12: cts_use_val
 v13: cts_valtest_init: ipython extract_feature.py -- train_features_v13.pkl -f all_paper_count -f num_collabrator_by_year -f citation_count_by_year_noorder -f h_index -f neighbor_citation -f neighbor_cts_citation --neighbor-cts-fname cts_feat_valtest_init.pkl
 v14: cts_cut_use_val  python ch_final_feature.py train_features_v11.pkl cts_feat_cut_use_val.pkl train_features_v14.pkl.    
-RUNNING: v15:  python ch_final_feature.py train_features_v11.pkl cts_feat_cut_use_val2.pkl train_features_v15.pkl
+v15:  python ch_final_feature.py train_features_v11.pkl cts_feat_cut_use_val2.pkl train_features_v15.pkl
+v16: python ch_final_feature.py train_features_v11.pkl cts_feat_cut_tonly_use_val3.pkl train_features_v16.pkl 卧槽= =我修改了不用val的数据做反而val上直接崩了... 这不难道就是overfit更严重了.........train上是664.2715937.但是val上却是746.1408557什么鬼= =
 
-
+比起v11... 更严重了= =为啥v11没有考虑.. 这里考虑了呀要看看 feature了列个表...
+v11 507904  41879.4318608 2
+v16 507904  62708.6976403 2
+32265 30059.4611577 15
+v16 32265 35484.8812341 15
 
 foxfi@foxfi-eva6:~/homework/adavance-ml/homeworks/homework3/code$ python test_between_pkl_file.py val_features_targets_indexes_v3_base-1975.pkl sklearn_lr/results/v13.txt.val.post
 error:  693.724912498
@@ -275,10 +282,60 @@ error:  666.882508877
 No.0 536438: res 2889.0 target 65380
 No.1 57357: res 1302.0 target 50038
 No.2 440643: res 15073.0 target 60080
-No.3 507904: res 35293.0 target 2
+No.3 507904: res 35293.0 target 2 #  平均之后18180. 还是需修正. v7的gbrt这一项为1195.8113233
 No.4 123761: res 31496.0 target 165
 No.5 403846: res 31216.0 target 60474
 No.6 875530: res 10464.0 target 37902
-No.7 32265: res 26879.0 target 15
-No.8 1238568: res 26879.0 target 15
+No.7 32265: res 26879.0 target 15 # 平均之后变成了14037还是需要修正
+No.8 1238568: res 26879.0 target 15 # 平均之后14047
 No.9 391051: res 7839.0 target 30647
+
+经过平均之后最不准确的变了:
+foxfi@foxfi-eva6:~/homework/adavance-ml/homeworks/homework3/code$ python test_between_pkl_file.py val_features_targets_indexes_v3_base-1975.pkl results/simple_mlp/v11/val_res_mlp_rmsprop_run1000.txt.average_gbrtv7.post
+error:  628.489951417
+最不准确的:
+No.0 536438: res 2602.0 target 65380
+No.1 57357: res 1585.0 target 50038
+No.2 440643: res 15021.0 target 60080
+No.3 403846: res 20684.0 target 60474
+No.4 183806: res 26560.0 target 54455
+No.5 875530: res 10593.0 target 37902
+No.6 391051: res 5029.0 target 30647
+No.7 664244: res 17518.0 target 41887
+No.8 1037883: res 8390.0 target 28516
+No.9 1052295: res 55123.0 target 35327
+
+
+mlp v11加了l2 reg 0.001反而有点更加overfit了...
+major: 5 minor: 2 memoryClockRate (GHz) 1.076
+pciBusID 0000:05:00.0
+Total memory: 11.92GiB
+Free memory: 11.81GiB
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:906] DMA: 0 1
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:916] 0:   Y Y
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:916] 1:   Y Y
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:975] Creating TensorFlow device (/gpu:0) -> (device: 0, name: GeForce GTX TITAN X, pci bus id: 0000:06:00.0)
+I tensorflow/core/common_runtime/gpu/gpu_device.cc:975] Creating TensorFlow device (/gpu:1) -> (device: 1, name: GeForce GTX TITAN X, pci bus id: 0000:05:00.0)
+train loss: 318008.96875, sqrt: 563.922851562; val loss: 476592.125, sqrt: 690.356506348
+train_predict will be written to train_res_mlp_rmsprop_run1000_reg0.001.txt
+val will be written to val_res_mlp_rmsprop_run1000_reg0.001.txt
+test_predict will be written to test_res_mlp_rmsprop_run1000_reg0.001.txt
+
+加深一层: 40-20-10-1发现效果并不好... 
+iteration 770: train loss: 601919.6875
+iteration 780: train loss: 528748.6875
+iteration 790: train loss: 713199.625
+iteration 800: train loss: 438213.125
+         val loss: 662481.0625
+Saved model to models/v11/mlp_rmsprop_40_20_10_run800.
+不过只有800个iter...(这里也有reg.)
+
+decay改成0.1变成更接近于rprop好像训不动了压根..
+iteration 360: train loss: 1684393.625
+iteration 370: train loss: 1684389.5
+iteration 380: train loss: 1684341.75
+iteration 390: train loss: 1684306.625
+iteration 400: train loss: 1684273.375
+         val loss: 1509326.375
+last lr value: 1.81898940355e-17
+Saved model to models/v11/mlp_rmsprop_40_20_10_run800_2.

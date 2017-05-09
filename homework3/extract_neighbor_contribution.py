@@ -5,13 +5,16 @@ import numpy as np
 from data import Author, Paper, init, read_res_file
 
 total_cts = True
-def prepare_total_cts(trainval_indexes_set):
+cts_truncate_fname = "cts_truncate_v16.txt"
+cts_truncate_f = open(cts_truncate_fname, "w")
+def prepare_total_cts(train_indexes_set, val_indexes_set):
     for index, p in Paper.papers_index_obj_map.iteritems():
-        trainval_as = [Author.get_author_from_index(a_id) for a_id in p.author_ids if a_id in trainval_indexes_set]
-        if trainval_as:
-            p.max_cites_count = np.min([a.target_cites_count for a in trainval_as])
+        train_as = [Author.get_author_from_index(a_id) for a_id in p.author_ids if a_id in train_indexes_set]
+        if train_as:
+            p.max_cites_count = np.min([a.target_cites_count for a in train_as])
         else:
             p.max_cites_count = None
+    trainval_indexes_set = train_indexes_set.union(val_indexes_set)
     for a_id in trainval_indexes_set:
         author = Author.get_author_from_index(a_id)
         p_mc = [Paper.get_paper_from_index(p_ind).max_cites_count for p_ind in author.all_papers]
@@ -20,7 +23,7 @@ def prepare_total_cts(trainval_indexes_set):
         else:
             author.total_cts = min(np.sum(p_mc), author.target_cites_count)
             if author.total_cts < author.target_cites_count:
-                print("truncated ind: {}; ori: {}; cut to {}".format(author.index, author.target_cites_count, author.total_cts))
+                print("truncated ind: {}; ori: {}; cut to {}".format(author.index, author.target_cites_count, author.total_cts), file=cts_truncate_f)
 
 def prepare_papers():
     def set_paper(self, order, index, cited_count):
@@ -85,7 +88,7 @@ def main():
     train_indexes_set = set(train_indexes)
     val_indexes = cPickle.load(open("val_indexes.pkl", "r"))
     val_indexes_set = set(val_indexes)
-    trainval_indexes_set = train_indexes_set.union(val_indexes_set)
+    #trainval_indexes_set = train_indexes_set.union(val_indexes_set)
     #trainval_indexes_set = train_indexes_set
     test_indexes = cPickle.load(open("test_indexes.pkl", "r"))
     test_indexes_set = set(test_indexes)
@@ -117,7 +120,8 @@ def main():
     #先做这个吧: 不变的话就做pre extraction
     if total_cts:
         print("prepare total cts")
-        prepare_total_cts(trainval_indexes_set)
+        #prepare_total_cts(trainval_indexes_set)
+        prepare_total_cts(train_indexes_set, val_indexes_set)
     for iter in range(max_iters):
         # async update, do not restrict order(可能每次order近似一样)
         print("Iter #{}".format(iter+1))
@@ -145,6 +149,7 @@ def main():
                         updated_num = mome * author.all_papers_cts[p_id] * now_cites_count + (1 - mome) * np.mean([col_a.all_papers_cts[p_id] * col_a.total_cts for col_a in col_as])
                     else:
                         updated_num = author.all_papers_cts[p_id] * now_cites_count
+                    # 这个truncate对于信息不全的paper和人是不是可能不太公平... 反而会抬高...
                     if total_cts and p.max_cites_count is not None and p.max_cites_count < updated_num:
                         updated_num = p.max_cites_count
                     papers_cts.append(updated_num)

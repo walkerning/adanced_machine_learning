@@ -76,7 +76,7 @@ def nn_layer(input_tensor, input_dim, output_dim, layer_name, act=tf.nn.relu):
             tf.summary.histogram('pre_activations', preactivate)
         activations = act(preactivate, name='activation')
         tf.summary.histogram('activations', activations)
-        return activations
+        return activations, [weights]
 
 def simple_mlp_model(X, **kwargs):
     """2 layer fc model with dropout
@@ -137,13 +137,13 @@ def simple_mlp_model(X, **kwargs):
         # predict_y = nn_layer(dropped, 20, 1, "layer2", act=tf.identity)
 
         # 40-20-1
-        hidden1 = nn_layer(X, input_dim, 40, "layer1")
+        hidden1, w1 = nn_layer(X, input_dim, 40, "layer1")
         dropped = tf.nn.dropout(hidden1, keep_prob)
-        hidden2 = nn_layer(dropped, 40, 20, "layer2")
+        hidden2, w2 = nn_layer(dropped, 40, 20, "layer2")
         dropped2 = tf.nn.dropout(hidden2, keep_prob)
         # hidden3 = nn_layer(dropped2, 20, 20, "layer2-2")
         # dropped3 = tf.nn.dropout(hidden3, keep_prob)
-        predict_y = nn_layer(dropped2, 20, 1, "layer3", act=tf.identity)
+        predict_y, w3 = nn_layer(dropped2, 20, 1, "layer3", act=tf.identity)
         # hidden3 = nn_layer(dropped2, 20, 10, "layer3")
         # predict_y = tf.reduce_mean(hidden3)
 
@@ -159,7 +159,7 @@ def simple_mlp_model(X, **kwargs):
         # hidden2 = nn_layer(dropped1, 10, 10, "layer2")
         # dropped2 = tf.nn.dropout(hidden2, keep_prob)
         # predict_y = nn_layer(dropped2, 10, 1, "layer3", act=tf.identity)
-        return predict_y
+        return predict_y, w1 + w2 + w3
 
 def linear_regression_model(X, **kwargs):
     """
@@ -174,7 +174,7 @@ def linear_regression_model(X, **kwargs):
         W = tf.Variable(tf.random_normal([input_dim, 1]), name="weight")
         b = tf.Variable(tf.random_normal([1]), name="bias")
         predict_y = tf.add(tf.matmul(X, W), b)
-        return predict_y
+        return predict_y, [W]
 
 def train():
     print("start loading features")
@@ -196,10 +196,14 @@ def train():
     with tf.name_scope('dropout'):
         keep_prob = tf.placeholder(tf.float32)
         tf.summary.scalar('dropout_keep_probability', keep_prob)
-    predict_y = FLAGS.model(X, keep_prob=keep_prob, input_dim=input_dim)
+    predict_y, regularized_w_list = FLAGS.model(X, keep_prob=keep_prob, input_dim=input_dim)
 
-    loss = tf.reduce_mean(tf.square(predict_y - Y)) # L2 loss
-    tf.summary.scalar('loss', loss)
+    loss_target = tf.reduce_mean(tf.square(predict_y - Y)) # L2 loss
+    tf.summary.scalar("loss_target", loss_target)
+    loss_reg = tf.add_n([tf.nn.l2_loss(w) for w in regularized_w_list]) * FLAGS.l2_beta
+    tf.summary.scalar("loss_reg", loss_reg)
+    loss = tf.add(loss_target, loss_reg)
+    tf.summary.scalar("loss", loss)
 
     saver = tf.train.Saver()
     # the path that the model weights will be loaded from or saved to
@@ -238,7 +242,7 @@ def train():
                     f.write("{}\t{}\n".format(ind, predict[0]))
         return sess
 
-    max_iter, test_iter, display_iter = FLAGS.max_iter, FLAGS.test_iter, FLAGS.display_iter
+    max_iter, test_iter, display_iter, snapshot_iter = FLAGS.max_iter, FLAGS.test_iter, FLAGS.display_iter, FLAGS.snapshot_iter
 
     ## optimizer
     # 先试试exponential decay
@@ -256,7 +260,8 @@ def train():
         elif FLAGS.optimizer == "momentum":
             optimizer = tf.train.MomentumOptimizer(learning_rate, FLAGS.momentum)
         elif FLAGS.optimizer == "adam":
-            optimizer = tf.train.AdamOptimizer(learning_rate, FLAGS.momentum)
+            #optimizer = tf.train.AdamOptimizer(learning_rate, FLAGS.momentum)
+            optimizer = tf.train.AdamOptimizer(FLAGS.learning_rate)#, FLAGS.momentum)
         elif FLAGS.optimizer == "rmsprop":
             optimizer = tf.train.RMSPropOptimizer(FLAGS.learning_rate)
             #learning_rate)
@@ -302,6 +307,8 @@ def train():
             summary, loss_value = sess.run([merged, loss], feed_dict={X: val_features, Y: val_targets, keep_prob: 1})
             test_writer.add_summary(summary, iter)
             print("\t val loss: {}".format(loss_value))
+        if snapshot_iter > 0 and iter % snapshot_iter == 0:
+            saver.save(sess, os.path.join(FLAGS.save_model_dir, "snapshots", FLAGS.save_model_file + ".{}".format(iter)))
     print("last lr value: {}".format(lr_value))
     saver.save(sess, save_model)
     print("Saved model to {}.".format(save_model))
@@ -310,6 +317,8 @@ def train():
     train_writer.close()
     test_writer.close()
     return sess
+
+from mlp_models import *
 
 def main(_):
     tf.gfile.MakeDirs(FLAGS.log_dir)
@@ -350,12 +359,19 @@ if __name__ == "__main__":
                         help="the dir to save the model")
     parser.add_argument("--save_model_file", default="model.model",
                         help="the file name to save the model")
-    parser.add_argument("--optimizer", default="gd",
+    parser.add_argument("--optimizer", default="rmsprop",
                         help="the optimizer type, gd / momentum / adam / rmsprop")
     parser.add_argument("--momentum", type=float, default=0.9,
                         help="the momentum of the optimizer with momentum (adam/momentum)")
+    
     parser.add_argument("--normalize_features", action="store_true", default=False,
                         help="normalize features to var=1, mean=0")
+    # for regularization
+    parser.add_argument("--l2_beta", type=float, default=0,
+                        help="l2 regularization weight")
+    # snapshot
+    parser.add_argument("--snapshot_iter", type=int, default=-1,
+                        help="snapshot interval")
     parser.add_argument(
         "--data_file",
         type=str,

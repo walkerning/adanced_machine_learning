@@ -111,6 +111,31 @@ def get_feature_citation_count_by_year_noorder(author):
         num_years_list[ind] += 1
     return np.concatenate((num_years_list, cites_years_list))
 
+def get_feature_citation_count_by_year_tmp(author):
+    base_year = getattr(args, "base_year", 1967)
+    if not hasattr(author, "papers"):
+        return [0 for _ in range((2011-base_year+1) * 4)]
+    cites_1st_years_list = [0 for _ in range(2011-base_year+1)]
+    num_1st_years_list = [0 for _ in range(2011-base_year+1)]
+    for index, cited_count in author.papers[0].iteritems():
+        p = Paper.get_paper_from_index(index)
+        ind = p.year - base_year
+        if ind < 0:
+            continue
+        cites_1st_years_list[ind] += cited_count
+        num_1st_years_list[ind] += 1
+
+    cites_last_years_list = [0 for _ in range(2011-base_year+1)]
+    num_last_years_list = [0 for _ in range(2011-base_year+1)]
+    for index, cited_count in author.papers[-1].iteritems():
+        p = Paper.get_paper_from_index(index)
+        ind = p.year - base_year
+        if ind < 0:
+            continue
+        cites_last_years_list[ind] += cited_count
+        num_last_years_list[ind] += 1
+    return np.concatenate((num_1st_years_list, cites_1st_years_list, num_last_years_list, cites_last_years_list))
+
 def get_feature_citation_count_by_year(author):
     base_year = getattr(args, "base_year", 1967)
     if not hasattr(author, "papers"):
@@ -291,6 +316,18 @@ def get_feature_neighbor_cts_citation(author):
             _neighbor_cts_dict = cPickle.load(f)        
     return np.array([_neighbor_cts_dict[author.index]])
 
+def get_feature_new_cited_by_year(author):
+    base_year = 1967
+    ps = [Paper.get_paper_from_index(p_ind) for p_ind in getattr(author, "all_papers", [])]
+    cited_year = [Paper.get_paper_from_index(c).year for p in ps for c in p.cited_by]
+    num_new_cited_list = [0 for _ in range(2011-base_year+1)]
+    for y in cited_year:
+        ind = y - base_year
+        if ind < 0:
+            continue
+        num_new_cited_list[ind] += 1
+    return np.array(num_new_cited_list)
+        
 feature_dict = {
     "all_paper_count": get_feature_all_paper_count,
     "citation_count_by_year": get_feature_citation_count_by_year,
@@ -300,7 +337,9 @@ feature_dict = {
     "conference": get_feature_conference,
     "neighbor_citation": get_feature_neighbor_citation,
     "h_index": get_feature_h_index,
-    "neighbor_cts_citation": get_feature_neighbor_cts_citation
+    "neighbor_cts_citation": get_feature_neighbor_cts_citation,
+    "citation_count_by_year_tmp": get_feature_citation_count_by_year_tmp,
+    "new_cited_by_year": get_feature_new_cited_by_year
 }
 
 feature_prepare_dict = {
@@ -310,7 +349,9 @@ feature_prepare_dict = {
     "conference": [prepare_papers],
     "num_collabrator_by_year": [prepare_collabrators],
     "neighbor_citation": [prepare_papers, prepare_collabrators],
-    "h_index": [prepare_papers]
+    "h_index": [prepare_papers],
+    "citation_count_by_year_tmp": [prepare_papers],
+    "new_cited_by_year": [prepare_papers]
 }
 
 def main():
@@ -321,6 +362,7 @@ def main():
     parser.add_argument("-f", "--features", action="append", required=True,
                         help="all the features will be concat in order",
                         choices=legal_feature_names)
+    parser.add_argument("-a", "--append", help="append new feature after a existing feature file", default=None)
     parser.add_argument("--base-year", default=1967, type=int,
                         help="the base year of by-year")
     parser.add_argument("--train", default="train_indexes.pkl",
@@ -349,12 +391,7 @@ def main():
 
     global args
     args = parser.parse_args()
-    with open(args.train, "r") as f:
-        train_indexes = cPickle.load(f)
-    with open(args.val, "r") as f:
-        val_indexes = cPickle.load(f)
-    with open(args.test, "r") as f:
-        test_indexes = cPickle.load(f)
+
     # init the data
     print("init the data")
     init("..")
@@ -366,6 +403,12 @@ def main():
     print("running the preparing functions")
     for prepare in prepare_func_list:
         prepare()
+    with open(args.train, "r") as f:
+        train_indexes = cPickle.load(f)
+    with open(args.val, "r") as f:
+        val_indexes = cPickle.load(f)
+    with open(args.test, "r") as f:
+        test_indexes = cPickle.load(f)
     # import pdb
     # pdb.set_trace()
     print("running the get feature functions")
@@ -423,6 +466,15 @@ def main():
             continue
         test_features[num+1, :] = feature
 
+    if args.append is not None:
+        with open(args.append + ".train", "r") as f:
+            old_train_features, _, _, old_val_features, _, _ = cPickle.load(f)
+        with open(args.append + ".test", "r") as f:
+            old_test_features, _ = cPickle.load(f)
+        train_features = np.hstack((old_train_features, train_features))
+        val_features = np.hstack((old_val_features, val_features))
+        test_features = np.hstack((old_test_features, test_features))
+
     # write into pkl file
     print("Writing features `(train_features, train_targets, train_indexes, val_features, val_targets, val_indexes)` to file {}.train".format(args.save))
     with open(args.save + ".train", "w") as f:
@@ -430,8 +482,6 @@ def main():
     print("Writing features `(test_features, test_indexes)` to file {}.test".format(args.save))
     with open(args.save + ".test", "w") as f:
         cPickle.dump((test_features, test_indexes), f)
-
-
 
 """
 TODO:
