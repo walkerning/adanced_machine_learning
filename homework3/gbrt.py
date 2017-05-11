@@ -21,7 +21,8 @@ defaults = {
         "lr": 0.1,
         "save_dir": "models/gbrt/",
         "res_dir": "results/gbrt/",
-        "loss": "ls"
+        "loss": "ls",
+        "add_val": False
     },
     "test": {
         "res_dir": "results/gbrt/"
@@ -72,6 +73,11 @@ def train(args, data_dict=None):
     regressor = GradientBoostingRegressor(n_estimators=args.n_estimators, learning_rate=args.lr,
                                           max_depth=args.max_depth, random_state=0, loss=args.loss, warm_start=True)
     # FIXME: what is max_depth of decision tree.
+    if args.add_val:
+        print("add val to training")
+        #ori_train_features = train_features
+        train_features = np.vstack((train_features, val_features))
+        train_targets = np.hstack((train_targets, val_targets))
     print("fitting regressor")
     regressor.fit(train_features, train_targets)
     model_path = os.path.join(args.save_dir, "n{}_d{}_lr{}-{}.model".format(args.n_estimators, args.max_depth, args.lr, run_var))
@@ -146,6 +152,7 @@ def main():
     train_parser.add_argument("--save-dir", default=defaults["train"]["save_dir"])
     train_parser.add_argument("--res-dir", default=defaults["train"]["res_dir"])
     train_parser.add_argument("--loss", default=defaults["train"]["loss"])
+    train_parser.add_argument("--add-val", action="store_true", default=False)
     batch_parser = subparsers.add_parser("batch")
     batch_parser.add_argument("conf", help="yaml file of list of configuration")
     batch_parser.add_argument("--parallel", action="store_true")

@@ -56,16 +56,16 @@ v7 feature: 加入了合作者平均值(确实有一些outlier, 对于直接mlp 
 | v10 train | 726.3335084       |    | |
 | v10 val   | 715.7601487       |    | |
 | v11 train | 679.5615549       |  683.2101845(400) 550.99822998(1000)(有一定的overfit, L2) | 398.1649887(500, 5) |
-| v11 val   | 699.0979139(after post:  697.798612525; average with gbrt v7 643.139887016(test 635.99225. v12新的test feature: 635.011816376182). average with gbrt v9: 635.709950679(test 643.34587298387过拟合了); average with gbrt v14:  617.947185539(感觉肯定过拟合..test 636.568264081054果然过拟合了.....))      | 724.3303373(400) 666.91595459(1000)(average with gbrtv7: 628.489951417. test:  613.985499016759)  |  636.1306552(500, 5) |
-| v11_new_cited train | 664.7114621  |  |   |
-| v11_new_cited val   | 684.2089672(after post: 682.866065854; average with gbrtv7:  634.181490742)  |  |   |
+| v11 val   | 699.0979139(after post:  697.798612525; average with gbrt v7 643.139887016(test 635.99225. v12新的test feature: 635.011816376182). average with gbrt v9: 635.709950679(test 643.34587298387过拟合了); average with gbrt v14:  617.947185539(感觉肯定过拟合..test 636.568264081054果然过拟合了.....))      | 724.3303373(400) 666.91595459(1000)(average with gbrtv7: 628.489951417. test:  613.985499016759; average with gbrt v11: 631.275882415没v7好...)  |  636.1306552(500, 5) |
+| v11_new_cited train | 664.7114621  | 559.271728516 |   |
+| v11_new_cited val   | 684.2089672(after post: 682.866065854; average with gbrtv7:  634.181490742)  | 645.564941406(600 iter adam, average with gbrt v7: 631.613631318... 反而变差了好气. 按照错误比例平均也没有效果; 将v11 new_cited lr, mlp和v7 gbrt一起平均: 624.102874154.. 也没有明显的提升, test 616.544366795682果然不行= =不管了...到时候就交一次add_val的就不管了...) |   |
 | v13 train | 679.5615549       |    | |
 | v13 val   | 695.0319592(after post: 693.724912498; average with gbrt v7: 642.681687151)       |    | |
 v14, v15用到了val的信息帮助train分每个paper的比重, 可能利用这个信息也会过拟合?. 干脆还是只用train的cut. 诶不对a...没有用... val的`total_cts_count`只被用在了test.all_papers_cts的更新上. 没有用在train.all_papers_cts或者val的更新上... 不过把val的target用在了其一些paper的最小值的限定上了 = =有道理诶. val还是不用于限定paper的cts了. 但是val的total_cts_count可以用在test的all_papers_cts的更新上
 | v14 train | 679.5231961       |    |  437.8034872(500, 4) 393.6562691(500, 5) |
 | v14 val   | 684.1683708(after post: 682.756776868; average with gbrt v7: 638.041958655;)       |    | 624.0462469(500, 4), 622.1464063(500, 5) |
 | v15 train | 664.5638166       |    | |
-| v15 val   | 645.4476259(after post:  643.944785454; average with gbrt v7:  618.882995168. test: 638.359091555661更差了= =看来val并不能很好的反应test集的情况呀)       |    | |
+| v15 val   | 645.4476259(after post:  643.944785454; average with gbrt v7:  618.882995168. test: 638.359091555661更差了= =看来这里val作弊了, val的结果并不能很好的反应test集的情况)       |    | |
 ev9: python extract_feature.py -- train_features_v9.pkl.train -f all_paper_count -f num_collabrator_by_year -f citation_count_by_year_noorder  -f h_index -f neighbor_citation
 
 
@@ -339,3 +339,20 @@ iteration 400: train loss: 1684273.375
          val loss: 1509326.375
 last lr value: 1.81898940355e-17
 Saved model to models/v11/mlp_rmsprop_40_20_10_run800_2.
+
+adam训练v11_new_cited 训练结果:
+$ CUDA_VISIBLE_DEVICES="0, 1" ipython tf_iid_regression.py --  --eval --test train_features_v11_new_cited.pkl.test --data_file train_features_v11_new_cited.pkl.train --model simple_mlp --save_model_dir models
+/v11_new_cited/use --save_model_file v11_new_cited_mlp_adam_run1000.600 --run_var v11_new_cited_mlp_adam_run1000 --log_dir logs/v11_new_cited/
+
+
+
+
+v11_add_val, 然后跟gbrt平均v7得到的结果: /home/foxfi/homework/adavance-ml/homeworks/homework3/code/results/gbrt/v7/test_res_gbrt_n500_d5_lr0.1-0_1494048582.txt.average_mlpv11addval.post. 608.883683675694.
+不平均差很多  662.273896414108.
+
+所以v7感觉也可以重新把val放进重新训了... 可能还有提升
+
+
+
+word embedding方法, 加入简单的word embedding, 用linear regression反正是没有卵用698.0666157
+不过确实感觉word embedding vector可能需要非线性的计算吧...不过还是有点麻烦...

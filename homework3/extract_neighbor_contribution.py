@@ -4,7 +4,7 @@ import cPickle
 import numpy as np
 from data import Author, Paper, init, read_res_file
 
-total_cts = True
+total_cts = False
 cts_truncate_fname = "cts_truncate_v16.txt"
 cts_truncate_f = open(cts_truncate_fname, "w")
 def prepare_total_cts(train_indexes_set, val_indexes_set):
@@ -73,14 +73,17 @@ def prepare_valtest_init(valtest_indexes):
         Author.get_author_from_index(ind).init_cites_count = init_dct[ind]
 
 use_val_for_test_feature = True
+add_val = True
 def main():
     smooth = 1
     mome = 0.8
     max_iters = 10
     # cts_fname = "cts_valtest_init.pkl"
     # feat_fname = "cts_feat_valtest_init.pkl"
-    cts_fname = "cts_cut_tonly_use_val3.pkl"
-    feat_fname = "cts_feat_cut_tonly_use_val3.pkl"
+    # cts_fname = "cts_cut_tonly_use_val3.pkl"
+    # feat_fname = "cts_feat_cut_tonly_use_val3.pkl"
+    cts_fname = "cts_add_val.pkl"
+    feat_fname = "cts_feat_add_val.pkl"
 
     init("..")
     # get train/val/test indexes
@@ -94,6 +97,9 @@ def main():
     test_indexes_set = set(test_indexes)
     valtest_indexes = np.hstack((val_indexes, test_indexes))
     valtest_indexes_set = set(valtest_indexes)
+    if add_val:
+        train_indexes_set = train_indexes_set.union(val_indexes_set)
+        val_indexes_set = set()
 
     print("prepare papers")
     prepare_papers()
@@ -122,6 +128,11 @@ def main():
         print("prepare total cts")
         #prepare_total_cts(trainval_indexes_set)
         prepare_total_cts(train_indexes_set, val_indexes_set)
+    else:
+        trainval_indexes_set = train_indexes_set.union(val_indexes_set)
+        for a_id in trainval_indexes_set:
+            author = Author.get_author_from_index(a_id)
+            author.total_cts =  author.target_cites_count
     for iter in range(max_iters):
         # async update, do not restrict order(可能每次order近似一样)
         print("Iter #{}".format(iter+1))

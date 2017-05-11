@@ -4,17 +4,24 @@ import cPickle
 import argparse
 import argparse
 import numpy as np
+# a stupid env fix on my machine...
+#import sys
+#sys.path.insert(0, "/home/foxfi/anaconda2/envs/lasso/lib/python2.7/site-packages")
+import sklearn
 from sklearn import linear_model
+print("sklearn: ", sklearn.__path__)
 from sklearn.metrics import mean_squared_error
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--model-file", required=True)
     parser.add_argument("--res-file", required=True)
 
     subparser = parser.add_subparsers(dest="phase")
     train_parser = subparser.add_parser("train")
+    train_parser.add_argument("--model", default="lr", help="the training model", choices=["lr", "lasso"])
     train_parser.add_argument("--data-file", required=True)
+    train_parser.add_argument("--lasso-alpha", default=0.01, type=float)
     test_parser = subparser.add_parser("test")
     test_parser.add_argument("--test-from", default=None)
 
@@ -35,7 +42,10 @@ def main():
         return
     print("Loading features")
     train_features, train_targets, train_indexes, val_features, val_targets, val_indexes = cPickle.load(open(args.data_file, "r"))
-    reg = linear_model.LinearRegression()
+    if args.model == "lr":
+        reg = linear_model.LinearRegression()
+    elif args.model == "lasso":
+        reg = linear_model.Lasso(alpha=args.lasso_alpha)
     print("Start fitting regression")
     reg.fit(train_features, train_targets)
     print("Finish fitting regression")

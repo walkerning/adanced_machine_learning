@@ -308,7 +308,9 @@ def train():
             test_writer.add_summary(summary, iter)
             print("\t val loss: {}".format(loss_value))
         if snapshot_iter > 0 and iter % snapshot_iter == 0:
-            saver.save(sess, os.path.join(FLAGS.save_model_dir, "snapshots", FLAGS.save_model_file + ".{}".format(iter)))
+            snapshot_path = os.path.join(FLAGS.save_model_dir, "snapshots", FLAGS.save_model_file + ".{}".format(iter))
+            print("snapshot model to {}".format(snapshot_path))
+            saver.save(sess, snapshot_path)
     print("last lr value: {}".format(lr_value))
     saver.save(sess, save_model)
     print("Saved model to {}.".format(save_model))

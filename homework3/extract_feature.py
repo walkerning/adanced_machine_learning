@@ -327,7 +327,15 @@ def get_feature_new_cited_by_year(author):
             continue
         num_new_cited_list[ind] += 1
     return np.array(num_new_cited_list)
-        
+
+_author_field_dct = None
+def get_feature_author_field(author):
+    global _author_field_dct
+    if _author_field_dct is None:
+        with open("./author_field_feature.pkl", "r") as f:
+            _author_field_dct = cPickle.load(f)
+    return _author_field_dct[author.index]
+
 feature_dict = {
     "all_paper_count": get_feature_all_paper_count,
     "citation_count_by_year": get_feature_citation_count_by_year,
@@ -339,7 +347,8 @@ feature_dict = {
     "h_index": get_feature_h_index,
     "neighbor_cts_citation": get_feature_neighbor_cts_citation,
     "citation_count_by_year_tmp": get_feature_citation_count_by_year_tmp,
-    "new_cited_by_year": get_feature_new_cited_by_year
+    "new_cited_by_year": get_feature_new_cited_by_year,
+    "author_field": get_feature_author_field
 }
 
 feature_prepare_dict = {
